@@ -1,7 +1,6 @@
 package mq
 
 import (
-	"eusunpower.com/us-push/socket"
 	"eusunpower.com/us-push/util"
 	"github.com/streadway/amqp"
 )
@@ -16,6 +15,7 @@ type MQ struct {
 	Ch   *amqp.Channel
 	Info Setting
 }
+type HandleReceivedMsg func(body string)
 
 var mq = &MQ{}
 
@@ -44,7 +44,7 @@ func (mq *MQ) BindQueue(queueName string, routingKey string) amqp.Queue {
 	return queue
 }
 
-func (mq *MQ) Consume(queueName string, handle socket.HandleReceivedMsg) {
+func (mq *MQ) Consume(queueName string, handle HandleReceivedMsg) {
 	deliveries, err := mq.Ch.Consume(queueName, "", true, false, false, false, nil)
 	util.FailOnError(err, "Fail to start consume")
 	go func() {
@@ -55,6 +55,6 @@ func (mq *MQ) Consume(queueName string, handle socket.HandleReceivedMsg) {
 }
 
 func (mq *MQ) Close() {
-	mq.Con.Close()
-	mq.Ch.Close()
+	_ = mq.Con.Close()
+	_ = mq.Ch.Close()
 }

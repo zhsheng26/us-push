@@ -1,15 +1,86 @@
 package socket
 
-import "github.com/gorilla/websocket"
-
-type HandleReceivedMsg func(body string)
+import (
+	"github.com/gorilla/websocket"
+	"net/http"
+)
 
 type PushMessage struct {
 	Content string
-	Code    int
+	Topic   string
 }
 
-var Upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+type clientHub struct {
+	clients              map[string]*websocket.Conn
+	registerClientChan   chan *websocket.Conn
+	unRegisterClientChan chan *websocket.Conn
+	BroadcastChan        chan PushMessage
+}
+
+func (hub *clientHub) register(conn *websocket.Conn) {
+	hub.clients[conn.RemoteAddr().String()] = conn
+}
+
+func (hub *clientHub) unRegister(conn *websocket.Conn) {
+	delete(hub.clients, conn.RemoteAddr().String())
+}
+
+func (hub *clientHub) broadcast(message PushMessage) {
+	for _, conn := range hub.clients {
+		if err := conn.WriteMessage(websocket.BinaryMessage, []byte(message.Content)); err != nil {
+			return
+		}
+	}
+}
+
+var Hub *clientHub
+
+var upgrader websocket.Upgrader
+
+func init() {
+	Hub = createHub()
+	upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+	}
+}
+
+func Start() {
+	http.HandleFunc("/us-push", func(writer http.ResponseWriter, request *http.Request) {
+		conn, _ := upgrader.Upgrade(writer, request, nil)
+		handler(conn, Hub)
+	})
+	go func() {
+		for {
+			select {
+			case conn := <-Hub.registerClientChan:
+				Hub.register(conn)
+			case conn := <-Hub.unRegisterClientChan:
+				Hub.unRegister(conn)
+			case message := <-Hub.BroadcastChan:
+				Hub.broadcast(message)
+			}
+
+		}
+	}()
+}
+
+func handler(conn *websocket.Conn, hub *clientHub) {
+	hub.registerClientChan <- conn
+	//怎么知道conn连接断开了
+	//for {
+	//	_, _, err := conn.ReadMessage()
+	//	if err != nil {
+	//		hub.unRegister(conn)
+	//	}
+	//}
+}
+
+func createHub() *clientHub {
+	return &clientHub{
+		clients:              make(map[string]*websocket.Conn),
+		registerClientChan:   make(chan *websocket.Conn),
+		unRegisterClientChan: make(chan *websocket.Conn),
+		BroadcastChan:        make(chan PushMessage),
+	}
 }

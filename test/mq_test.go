@@ -21,7 +21,7 @@ func TestPublish(t *testing.T) {
 	go func() {
 		body := &socket.PushMessage{
 			Content: "us",
-			Code:    200,
+			Topic:   "gis",
 		}
 		bytes, _ := json.Marshal(body)
 		err := connectMq.Ch.Publish(setting.Exchange, "my.us.message", false, false,
