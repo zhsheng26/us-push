@@ -1,6 +1,7 @@
 package socket
 
 import (
+	"encoding/json"
 	"github.com/gorilla/websocket"
 	"net/http"
 )
@@ -26,8 +27,9 @@ func (hub *clientHub) unRegister(conn *websocket.Conn) {
 }
 
 func (hub *clientHub) broadcast(message PushMessage) {
+	bytes, _ := json.Marshal(message)
 	for _, conn := range hub.clients {
-		if err := conn.WriteMessage(websocket.BinaryMessage, []byte(message.Content)); err != nil {
+		if err := conn.WriteJSON(string(bytes)); err != nil {
 			return
 		}
 	}
