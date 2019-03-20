@@ -15,7 +15,7 @@ type MQ struct {
 	Ch   *amqp.Channel
 	Info Setting
 }
-type HandleReceivedMsg func(body string)
+type HandleReceivedMsg func(body []byte)
 
 var mq = &MQ{}
 
@@ -49,7 +49,7 @@ func (mq *MQ) Consume(queueName string, handle HandleReceivedMsg) {
 	util.FailOnError(err, "Fail to start consume")
 	go func() {
 		for data := range deliveries {
-			handle(string(data.Body))
+			handle(data.Body)
 		}
 	}()
 }

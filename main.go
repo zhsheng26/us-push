@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"eusunpower.com/us-push/melody"
 	"eusunpower.com/us-push/mq"
 	"eusunpower.com/us-push/socket"
 	"flag"
@@ -30,19 +32,28 @@ func main() {
 	}
 	connectMq := mq.ConnectMq(setting)
 	defer connectMq.Close()
+	//socket.Start()
+	m := melody.New()
 	queue := connectMq.BindQueue("us-push", "#.us.#")
-	connectMq.Consume(queue.Name, func(body string) {
-		//需要推送的消息
-		fmt.Println(body)
-		socket.Hub.BroadcastChan <- socket.PushMessage{Content: body}
+	connectMq.Consume(queue.Name, func(body []byte) {
+		//需要推送给客户端的消息
+		_ = m.BroadcastFilter(body, func(session *melody.Session) bool {
+			content := socket.PushMessage{}
+			_ = json.Unmarshal(body, &content)
+			return session.Keys["topic"] == content.Topic
+		})
 	})
-
-	socket.Start()
-
+	http.HandleFunc("/us-push", func(writer http.ResponseWriter, request *http.Request) {
+		topic := request.URL.Query().Get("topic")
+		_ = m.HandleRequestWithKeys(writer, request, map[string]interface{}{"topic": topic})
+	})
+	m.HandleMessage(func(s *melody.Session, msg []byte) {
+		//客户端发来的消息
+		fmt.Println("receive:" + string(msg))
+	})
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "web/websockets.gohtml")
+		http.ServeFile(w, r, "web/test.gohtml")
 	})
-
 	_ = http.ListenAndServe(":8080", nil)
 
 }

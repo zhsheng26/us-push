@@ -11,7 +11,7 @@
 <script>
     const input = document.getElementById("input");
     const output = document.getElementById("output");
-    const socket = new WebSocket("ws://localhost:8080/us-push");
+    const socket = new WebSocket("ws://localhost:8080/us-push?topic=gis");
 
     socket.onopen = function () {
         output.innerHTML += "Status: Connected\n";
