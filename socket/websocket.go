@@ -3,6 +3,7 @@ package socket
 import (
 	"encoding/json"
 	"github.com/gorilla/websocket"
+	"log"
 	"net/http"
 )
 
@@ -70,12 +71,13 @@ func Start() {
 func handler(conn *websocket.Conn, hub *clientHub) {
 	hub.registerClientChan <- conn
 	//怎么知道conn连接断开了
-	//for {
-	//	_, _, err := conn.ReadMessage()
-	//	if err != nil {
-	//		hub.unRegister(conn)
-	//	}
-	//}
+	for {
+		_, _, err := conn.ReadMessage()
+		if err != nil {
+			log.Printf("%v", err)
+			hub.unRegister(conn)
+		}
+	}
 }
 
 func createHub() *clientHub {
